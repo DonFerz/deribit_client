@@ -12,7 +12,7 @@ from app.core.database import create_task_engine
 from app.core.logging import get_logger
 from app.repositories.uow import SQLAlchemyUnitOfWork
 from app.schemas.price import TickerEnum
-from app.services.price_service import PriceService
+from app.services.price_service import PriceCollectorService
 
 logger = get_logger(__name__)
 
@@ -57,7 +57,7 @@ async def _collect_and_store_prices() -> list[TickerEnum]:
     try:
         async with aiohttp.ClientSession() as session:
             client = DeribitClient.from_settings(session)
-            service = PriceService(uow_factory=uow_factory, client=client)
+            service = PriceCollectorService(uow_factory=uow_factory, client=client)
             return await service.collect_and_store(tickers)
     finally:
         await engine.dispose()
