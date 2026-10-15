@@ -1,0 +1,15 @@
+# По умолчанию — LF во всех текстовых файлах,
+# автоопределение текстовый/бинарный.
+* text=auto eol=lf
+
+# Явные правила — на случай, если автоопределение не сработает.
+*.py         text eol=lf
+*.sh         text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+Dockerfile*  text eol=lf
+
+# Windows-скрипты CRLF для корректной работы.
+*.bat        text eol=crlf
+*.cmd        text eol=crlf
+*.ps1        text eol=crlf

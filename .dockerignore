@@ -1,9 +1,13 @@
 .git
 .gitignore
+.gitattributes
 .venv
 venv
+env
 __pycache__
 *.pyc
+*.pyo
+*.pyd
 .pytest_cache
 .mypy_cache
 .ruff_cache
@@ -15,3 +19,4 @@ htmlcov
 .vscode
 tests
 README.md
+docs
