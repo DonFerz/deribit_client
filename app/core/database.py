@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
 
@@ -17,12 +18,31 @@ class Base(DeclarativeBase):
 
 
 def create_engine() -> AsyncEngine:
-    """Создаёт async-engine SQLAlchemy на основе настроек."""
+    """Создаёт async-engine SQLAlchemy на основе настроек.
+
+    Использует пул соединений — подходит для долгоживущих процессов
+    с одним event loop (FastAPI).
+    """
     settings = get_settings()
     return create_async_engine(
         settings.database_url,
         echo=settings.app_debug,
         pool_pre_ping=True,
+    )
+
+
+def create_task_engine() -> AsyncEngine:
+    """Создаёт engine без пула соединений — для Celery-задач.
+
+    Каждый вызов `asyncio.run()` в Celery создаёт новый event loop,
+    а пул asyncpg привязан к своему loop'у. `NullPool` отключает
+    пулирование, поэтому переиспользование loop'ов не проблема.
+    """
+    settings = get_settings()
+    return create_async_engine(
+        settings.database_url,
+        echo=settings.app_debug,
+        poolclass=NullPool,
     )
 
 
@@ -38,13 +58,13 @@ def create_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]
 
 @lru_cache
 def get_engine() -> AsyncEngine:
-    """Возвращает единственный на процесс async-engine."""
+    """Возвращает единственный на процесс async-engine (для FastAPI)."""
     return create_engine()
 
 
 @lru_cache
 def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
-    """Возвращает единственный на процесс sessionmaker."""
+    """Возвращает единственный на процесс sessionmaker (для FastAPI)."""
     return create_sessionmaker(get_engine())
 
 
