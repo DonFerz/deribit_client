@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.api.health import router as health_router
 from app.api.v1.router import v1_router
 from app.core.config import get_settings
 from app.core.database import create_engine, create_sessionmaker
@@ -105,6 +106,11 @@ def create_app() -> FastAPI:
         debug=settings.app_debug,
         lifespan=lifespan,
     )
+
+    # /health — вне /api/v1: healthcheck не относится к бизнес-API
+    # и не должен версионироваться вместе с ним.
+    app.include_router(health_router)
     app.include_router(v1_router)
+
     _register_exception_handlers(app)
     return app
