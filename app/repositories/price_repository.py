@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -9,17 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.price import Price
 from app.repositories.base import AbstractPriceRepository
 from app.schemas.price import TickerEnum
-
-
-def _datetime_to_unix_seconds(dt: datetime) -> int:
-    """Конвертирует datetime в UNIX timestamp (секунды).
-
-    Naive datetime трактуется как UTC — это защищает от
-    случайного применения локальной таймзоны сервера.
-    """
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return int(dt.timestamp())
 
 
 class SQLAlchemyPriceRepository(AbstractPriceRepository):
@@ -31,13 +19,18 @@ class SQLAlchemyPriceRepository(AbstractPriceRepository):
     async def add(
         self, ticker: TickerEnum, price: Decimal, timestamp: int
     ) -> Price:
+        """Сохраняет новую цену и возвращает ORM-объект.
+
+        Делает `flush`, а не `commit` — вызывающий сам решает,
+        когда фиксировать транзакцию.
+        """
         model = Price(ticker=ticker.value, price=price, timestamp=timestamp)
         self._session.add(model)
-        # flush, а не commit: транзакцией управляет сервисный слой.
         await self._session.flush()
         return model
 
     async def get_all_by_ticker(self, ticker: TickerEnum) -> list[Price]:
+        """Все сохранённые цены тикера, отсортированные по timestamp (asc)."""
         stmt = (
             select(Price)
             .where(Price.ticker == ticker.value)
@@ -47,6 +40,7 @@ class SQLAlchemyPriceRepository(AbstractPriceRepository):
         return list(result.scalars().all())
 
     async def get_latest_by_ticker(self, ticker: TickerEnum) -> Price | None:
+        """Последняя сохранённая цена тикера, либо None."""
         stmt = (
             select(Price)
             .where(Price.ticker == ticker.value)
@@ -59,18 +53,19 @@ class SQLAlchemyPriceRepository(AbstractPriceRepository):
     async def get_by_ticker_and_period(
         self,
         ticker: TickerEnum,
-        date_from: datetime,
-        date_to: datetime,
+        timestamp_from: int,
+        timestamp_to: int,
     ) -> list[Price]:
-        from_ts = _datetime_to_unix_seconds(date_from)
-        to_ts = _datetime_to_unix_seconds(date_to)
+        """Цены тикера в интервале [timestamp_from, timestamp_to] (ms UTC).
 
+        Границы включительные. Сортировка по timestamp (asc).
+        """
         stmt = (
             select(Price)
             .where(
                 Price.ticker == ticker.value,
-                Price.timestamp >= from_ts,
-                Price.timestamp <= to_ts,
+                Price.timestamp >= timestamp_from,
+                Price.timestamp <= timestamp_to,
             )
             .order_by(Price.timestamp.asc())
         )

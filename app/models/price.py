@@ -13,7 +13,7 @@ class Price(Base):
 
     Уникальность `(ticker, timestamp)` защищает от дубликатов при
     повторной доставке Celery-задачи (task_acks_late=True).
-    Timestamp хранится в миллисекундах UTC, как его отдаёт Deribit.
+    Timestamp — момент сохранения в миллисекундах UTC.
     """
 
     __tablename__ = "prices"
